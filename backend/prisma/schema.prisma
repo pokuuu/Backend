@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccessLevel {
+  User
+  Staff
+  DistributionCenter
+  Admin
+}
+
+enum ShelterCategory {
+  Shelter
+  DistributionCenter
+}
+
+enum SupplyMeasure {
+  Unit
+  Kg
+  Litters
+  Box
+  Piece
+}
+
+enum DonationOrderStatus {
+  Pending
+  Canceled
+  Complete
+}
+
+model User {
+  id          String      @id @default(uuid())
+  name        String
+  lastName    String
+  login       String      @unique
+  password    String
+  phone       String      @unique
+  accessLevel AccessLevel @default(value: User)
+  createdAt   String      @map("created_at") @db.VarChar(32)
+  updatedAt   String?     @map("updated_at") @db.VarChar(32)
+
+  sessions        Session[]
+  shelterManagers ShelterManagers[]
+  suppliesHistory SupplyHistory[]
+  donationOrders  DonationOrder[]
+  shelterUsers    ShelterUsers[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  ip        String?
+  userAgent String? @map("user_agent")
+  active    Boolean @default(value: true)
+  createdAt String  @map("created_at") @db.VarChar(32)
+  updatedAt String? @map("updated_at") @db.VarChar(32)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("sessions")
+}
+
+model SupplyCategory {
+  id        String  @id @default(uuid())
+  name      String  @unique
+  createdAt String  @map("created_at") @db.VarChar(32)
+  updatedAt String? @map("updated_at") @db.VarChar(32)
+
+  supplies Supply[]
+
+  @@map("category_supplies")
+}
+
+model ShelterSupply {
+  shelterId String  @map("shelter_id")
+  supplyId  String  @map("supply_id")
+  priority  Int     @default(value: 0)
+  quantity  Int?
+  createdAt String  @map("created_at") @db.VarChar(32)
+  updatedAt String? @map("updated_at") @db.VarChar(32)
+
+  shelter Shelter @relation(fields: [shelterId], references: [id])
+  supply  Supply  @relation(fields: [supplyId], references: [id])
+
+  @@id([shelterId, supplyId])
+  @@map("shelter_supplies")
+}
+
+model Supply {
+  id               String        @id @default(uuid())
+  supplyCategoryId String        @map("supply_category_id")
+  name             String
+  measure          SupplyMeasure @default(value: Unit)
+  createdAt        String        @map("created_at") @db.VarChar(32)
+  updatedAt        String?       @map("updated_at") @db.VarChar(32)
+
+  supplyCategory      SupplyCategory        @relation(fields: [supplyCategoryId], references: [id])
+  shelterSupplies     ShelterSupply[]
+  supplyHistories     SupplyHistory[]
+  DonationOrderSupply DonationOrderSupply[]
+
+  @@map("supplies")
+}
+
+model Shelter {
+  id              String          @id @default(uuid())
+  name            String          @unique
+  pix             String?         @unique
+  address         String
+  street          String?
+  neighbourhood   String?
+  city            String?
+  streetNumber    String?         @map("street_number")
+  zipCode         String?         @map("zip_code")
+  petFriendly     Boolean?        @map("pet_friendly")
+  shelteredPets   Int?            @map("sheltered_pets")
+  petsCapacity    Int?            @map("pets_capacity")
+  shelteredPeople Int?            @map("sheltered_people")
+  capacity        Int?
+  contact         String?
+  prioritySum     Int             @default(value: 0) @map("priority_sum")
+  latitude        Float?
+  longitude       Float?
+  verified        Boolean         @default(value: false)
+  category        ShelterCategory @default(value: Shelter)
+  actived         Boolean         @default(value: true)
+  createdAt       String          @map("created_at") @db.VarChar(32)
+  updatedAt       String?         @map("updated_at") @db.VarChar(32)
+
+  shelterManagers ShelterManagers[]
+  shelterSupplies ShelterSupply[]
+  supplyHistories SupplyHistory[]
+  donationOrders  DonationOrder[]
+  shelterUsers    ShelterUsers[]
+
+  @@map("shelters")
+}
+
+model ShelterManagers {
+  shelterId String  @map("shelter_id")
+  userId    String  @map("user_id")
+  createdAt String  @map("created_at") @db.VarChar(32)
+  updatedAt String? @map("updated_at") @db.VarChar(32)
+
+  user    User    @relation(fields: [userId], references: [id])
+  shelter Shelter @relation(fields: [shelterId], references: [id])
+
+  @@id([shelterId, userId])
+  @@map("shelter_managers")
+}
+
+model Partners {
+  id        String  @id @default(uuid())
+  name      String  @unique
+  link      String
+  createdAt String  @map("created_at") @db.VarChar(32)
+  updatedAt String? @map("updated_at") @db.VarChar(32)
+
+  @@map("partners")
+}
+
+model Supporters {
+  id        String  @id @default(uuid())
+  name      String  @unique
+  imageUrl  String  @map("image_url")
+  link      String
+  createdAt String  @map("created_at") @db.VarChar(32)
+  updatedAt String? @map("updated_at") @db.VarChar(32)
+
+  @@map("supporters")
+}
+
+model SupplyHistory {
+  id            String  @id @default(uuid())
+  predecessorId String? @unique @map("predecessor_id")
+  shelterId     String  @map("shelter_id")
+  supplyId      String  @map("supply_id")
+  userId        String? @map("user_id")
+  priority      Int?
+  quantity      Int?
+  ip            String?
+  userAgent     String? @map("user_agent")
+  createdAt     String  @map("created_at") @db.VarChar(32)
+
+  predecessor SupplyHistory? @relation("supplyHistory", fields: [predecessorId], references: [id])
+  successor   SupplyHistory? @relation("supplyHistory")
+  shelter     Shelter        @relation(fields: [shelterId], references: [id])
+  supply      Supply         @relation(fields: [supplyId], references: [id])
+  user        User?          @relation(fields: [userId], references: [id])
+
+  @@map("supplies_history")
+}
+
+model DonationOrderSupply {
+  id              String  @id @default(uuid())
+  donationOrderId String  @map("donation_order_id")
+  supplyId        String  @map("supply_id")
+  quantity        Int
+  createdAt       String  @map("created_at") @db.VarChar(32)
+  updatedAt       String? @map("updated_at") @db.VarChar(32)
+
+  supply        Supply        @relation(fields: [supplyId], references: [id])
+  donationOrder DonationOrder @relation(fields: [donationOrderId], references: [id])
+
+  @@map("donation_order_supplies")
+}
+
+model DonationOrder {
+  id        String              @id @default(uuid())
+  userId    String              @map("user_id")
+  shelterId String              @map("shelter_id")
+  status    DonationOrderStatus @default(value: Pending)
+  createdAt String              @map("created_at") @db.VarChar(32)
+  updatedAt String?             @map("updated_at") @db.VarChar(32)
+
+  user                  User                  @relation(fields: [userId], references: [id])
+  shelter               Shelter               @relation(fields: [shelterId], references: [id])
+  donationOrderSupplies DonationOrderSupply[]
+
+  @@map("donation_orders")
+}
+
+model ShelterUsers {
+  userId    String @map("user_id")
+  shelterId String @map("shelter_id")
+  createdAt String @map("created_at") @db.VarChar(32)
+
+  user    User    @relation(fields: [userId], references: [id])
+  shelter Shelter @relation(fields: [shelterId], references: [id])
+
+  @@id([userId, shelterId])
+  @@map("shelter_users")
+}
